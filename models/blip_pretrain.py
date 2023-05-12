@@ -248,8 +248,7 @@ class BLIP_Pretrain(nn.Module):
 
 
 def blip_pretrain(**kwargs):
-    model = BLIP_Pretrain(**kwargs)
-    return model 
+    return BLIP_Pretrain(**kwargs) 
 
 
 @torch.no_grad()
@@ -262,8 +261,7 @@ def concat_all_gather(tensor):
         for _ in range(torch.distributed.get_world_size())]
     torch.distributed.all_gather(tensors_gather, tensor, async_op=False)
 
-    output = torch.cat(tensors_gather, dim=0)
-    return output     
+    return torch.cat(tensors_gather, dim=0)     
 
 
 from typing import List
@@ -275,13 +273,13 @@ def tie_encoder_decoder_weights(encoder: nn.Module, decoder: nn.Module, base_mod
         )
 
     def tie_encoder_to_decoder_recursively(
-        decoder_pointer: nn.Module,
-        encoder_pointer: nn.Module,
-        module_name: str,
-        uninitialized_encoder_weights: List[str],
-        skip_key: str,
-        depth=0,
-    ):
+            decoder_pointer: nn.Module,
+            encoder_pointer: nn.Module,
+            module_name: str,
+            uninitialized_encoder_weights: List[str],
+            skip_key: str,
+            depth=0,
+        ):
         assert isinstance(decoder_pointer, nn.Module) and isinstance(
             encoder_pointer, nn.Module
         ), f"{decoder_pointer} and {encoder_pointer} have to be of type torch.nn.Module"
@@ -290,8 +288,8 @@ def tie_encoder_decoder_weights(encoder: nn.Module, decoder: nn.Module, base_mod
             encoder_pointer.weight = decoder_pointer.weight
             if hasattr(decoder_pointer, "bias"):
                 assert hasattr(encoder_pointer, "bias")
-                encoder_pointer.bias = decoder_pointer.bias                
-            print(module_name+' is tied')    
+                encoder_pointer.bias = decoder_pointer.bias
+            print(f'{module_name} is tied')
             return
 
         encoder_modules = encoder_pointer._modules
@@ -301,7 +299,10 @@ def tie_encoder_decoder_weights(encoder: nn.Module, decoder: nn.Module, base_mod
                 len(encoder_modules) > 0
             ), f"Encoder module {encoder_pointer} does not match decoder module {decoder_pointer}"
 
-            all_encoder_weights = set([module_name + "/" + sub_name for sub_name in encoder_modules.keys()])
+            all_encoder_weights = {
+                f"{module_name}/{sub_name}"
+                for sub_name in encoder_modules.keys()
+            }
             encoder_layer_pos = 0
             for name, module in decoder_modules.items():
                 if name.isdigit():
@@ -326,12 +327,12 @@ def tie_encoder_decoder_weights(encoder: nn.Module, decoder: nn.Module, base_mod
                 tie_encoder_to_decoder_recursively(
                     decoder_modules[decoder_name],
                     encoder_modules[encoder_name],
-                    module_name + "/" + name,
+                    f"{module_name}/{name}",
                     uninitialized_encoder_weights,
                     skip_key,
                     depth=depth + 1,
                 )
-                all_encoder_weights.remove(module_name + "/" + encoder_name)
+                all_encoder_weights.remove(f"{module_name}/{encoder_name}")
 
             uninitialized_encoder_weights += list(all_encoder_weights)
 
